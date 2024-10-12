@@ -1,10 +1,15 @@
 import requests
 import pandas as pd
 import time
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Etsy API credentials
-API_KEY = 'YOUR_etsy_api_key'  # Replace with your Etsy API Key
-SHOP_ID = 'YOUR_shop_id'  # Replace with your shop ID
+API_KEY = os.getenv('ETSY_API_KEY')  # Store actual key in .env file
+SHOP_ID = os.getenv('ETSY_SHOP_ID')  # Store actual ID in .env file
 URL = f'https://openapi.etsy.com/v2/shops/{SHOP_ID}/receipts?api_key={API_KEY}'
 
 def fetch_orders():
