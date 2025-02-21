@@ -14,3 +14,7 @@ labels/*
 
 #Ignore the environment variables
 .env
+
+#
+cert/*
+!.gitkeep

@@ -15,30 +15,68 @@ LABEL_SIZE = os.getenv("LABEL_SIZE", "29x90")  # Default to 29x90
 LABEL_IMAGE_PATH = os.path.join(os.getcwd(), "labels", "label.png")  # Overwrite existing file
 
 def create_address_label():
-    """Creates an image of the address label for a 29mm x 90mm label."""
-    address_text = "Samuel Kamas\nTocil 51F\n51F\nCoventry, West Midlands CV4 7ES\nUnited Kingdom"
+    """Creates a left-aligned address label for 29x90mm labels."""
+    address_text = "Alexander Moyer\n1528 thompson lane\nMECHANICSBURG, PA 17055\nUnited States"
     
-    # Correct pixel dimensions for 29x90 labels (991px x 306px), taken from here: https://github.com/pklaus/brother_ql
+    # Label dimensions (991x306 pixels)
     width, height = 991, 306
-    image = Image.new("1", (width, height), 255)  # B/W image
-    
+    image = Image.new("1", (width, height), 255)
     draw = ImageDraw.Draw(image)
-    
-    # Try loading a system font, fallback if necessary
-    try:
-        font = ImageFont.truetype("arial.ttf", 80)  # Adjust font size
-    except IOError:
-        font = ImageFont.load_default()
-    
-    # Position text to be centered on the label
-    text_x = 20  # Small left margin
-    text_y = 50  # Adjust to position text vertically centered
 
-    draw.text((text_x, text_y), address_text, font=font, fill=0)
+    # Try common system fonts
+    font_paths = [
+        "DejaVuSans-Bold.ttf",
+        "Arial Bold.ttf",
+        "arialbd.ttf",
+        "Arial.ttf",
+        "FreeSans-Bold.ttf",
+        "LiberationSans-Bold.ttf"
+    ]
     
-    # Overwrite existing file
+    font_size = 120
+    font = None
+
+    # Find first available font
+    for path in font_paths:
+        try:
+            font = ImageFont.truetype(path, font_size)
+            break
+        except (IOError, OSError):
+            continue
+
+    # Fallback to default font
+    if not font:
+        font = ImageFont.load_default()
+        print("Using default font")
+    else:
+        # Adjust font size to fit
+        while font_size > 10:
+            # Modern text size calculation
+            bbox = draw.textbbox((0, 0), address_text, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+            
+            if text_width < width - 50 and text_height < height - 20:
+                break
+            font_size -= 2
+            font = ImageFont.truetype(font.path, font_size)
+
+    # Left alignment with margins
+    margin_left = 20
+    margin_top = 20
+
+    # Draw text
+    draw.multiline_text(
+        (margin_left, margin_top),
+        address_text,
+        font=font,
+        fill=0,
+        align="left"
+    )
+
     image.save(LABEL_IMAGE_PATH)
     print(f"Label image saved at: {LABEL_IMAGE_PATH}")
+
 
 def print_label():
     """Prints the label using the brother_ql command-line tool."""
