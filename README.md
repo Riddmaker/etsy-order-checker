@@ -19,3 +19,6 @@ Gets current etsy orders and prints shipping label on brother label printer.
 4. Install the necessary venv via something like: python3 -m venv venv or python -m venv venv
 5. Source the virtual environment. In bash it is: source venv/bin/activate in powershell it is: .\venv\Scripts\activate
 6. Install the necessary requirements to run the script: pip install -r requirements.txt
+7. Adjust your label size, label pixels according to brother-ql readme.
+8. Adjust font size in the main print script.
+9. Run the script
