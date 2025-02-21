@@ -1,76 +1,48 @@
-# auth.py
 import os
-import requests
+import base64
+import hashlib
+import secrets
 from dotenv import load_dotenv
-from flask import Flask, request, redirect
+from requests_oauthlib import OAuth2Session
 
-app = Flask(__name__)
-
-# Load environment variables
 load_dotenv()
 
-# Etsy API credentials
-CLIENT_ID = os.getenv('KEYSTRING')  # Etsy API key
-CLIENT_SECRET = os.getenv('SHARED_SECRET')  # Etsy shared secret
+class EtsyAuth:
+    def __init__(self):
+        self.client_id = os.getenv('ETSY_CLIENT_ID')
+        self.client_secret = os.getenv('ETSY_CLIENT_SECRET')
+        self.redirect_uri = 'http://localhost:8080/callback'
+        self.scopes = ['transactions_r']
+        self.token_path = '.etsy_token'
+        self.code_verifier = secrets.token_urlsafe(64)
+        self.code_challenge = self._generate_code_challenge()
 
-# Etsy API URLs
-AUTHORIZE_URL = "https://www.etsy.com/oauth/connect"
-ACCESS_TOKEN_URL = "https://openapi.etsy.com/v3/public/oauth/token"
+    def _generate_code_challenge(self):
+        hashed = hashlib.sha256(self.code_verifier.encode()).digest()
+        return base64.urlsafe_b64encode(hashed).decode().rstrip('=')
 
-# Global variable to store the access token once obtained
-access_token = None
+    def get_auth_url(self):
+        oauth = OAuth2Session(
+            self.client_id,
+            redirect_uri=self.redirect_uri,
+            scope=self.scopes
+        )
+        return oauth.authorization_url(
+            'https://www.etsy.com/oauth/connect',
+            code_challenge=self.code_challenge,
+            code_challenge_method='S256'
+        )[0]
 
-@app.route('/')
-def home():
-    return 'Welcome! To connect with Etsy, visit /connect'
-
-@app.route('/connect')
-def connect():
-    # Step 1: Get authorization URL
-    redirect_uri = 'http://localhost:5000/callback'
-    authorization_url = f"{AUTHORIZE_URL}?response_type=code&client_id={CLIENT_ID}&redirect_uri={redirect_uri}&scope=transactions_r"
-
-    # Redirect user to Etsy authorization page
-    return redirect(authorization_url)
-
-@app.route('/callback')
-def callback():
-    # Get the authorization code from the request URL
-    code = request.args.get('code')
-
-    if code:
-        # Step 2: Exchange the code for an access token
-        global access_token
-        response = requests.post(ACCESS_TOKEN_URL, data={
-            'grant_type': 'authorization_code',
-            'client_id': CLIENT_ID,
-            'client_secret': CLIENT_SECRET,
-            'code': code,
-            'redirect_uri': 'http://localhost:5000/callback'
-        })
-
-        if response.status_code == 200:
-            access_token = response.json()['access_token']
-            return f'Authorization successful! Access token saved.'
-        else:
-            return 'Error: Failed to get access token.'
-
-    return 'Error: Authorization failed.'
-
-@app.route('/get_shop_id')
-def get_shop_id():
-    if not access_token:
-        return 'You must authorize first by visiting /connect.'
-
-    headers = {'Authorization': f'Bearer {access_token}'}
-    response = requests.get("https://openapi.etsy.com/v3/application/users/me/shops", headers=headers)
-
-    if response.status_code == 200:
-        shop_id = response.json()[0]['shop_id']
-        return f"Your shop ID is: {shop_id}"
-    else:
-        return 'Error: Could not fetch shop information.'
-
-if __name__ == '__main__':
-    # Run the Flask app to handle authentication
-    app.run(debug=True)
+    def fetch_token(self, redirect_response):
+        oauth = OAuth2Session(
+            self.client_id,
+            redirect_uri=self.redirect_uri,
+            scope=self.scopes
+        )
+        token = oauth.fetch_token(
+            'https://api.etsy.com/v3/public/oauth/token',
+            authorization_response=redirect_response,
+            code_verifier=self.code_verifier,
+            client_secret=self.client_secret
+        )
+        return oauth

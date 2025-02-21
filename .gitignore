@@ -1,11 +1,16 @@
 # Ignore virtual environment
 venv/
+etsy-order-getter
 
 # Ignore Python bytecode
 __pycache__/
 
 # Ignore system files
 .DS_Store
+
+# Ignore everything in labels folder
+labels/*
+!.gitkeep
 
 #Ignore the environment variables
 .env
