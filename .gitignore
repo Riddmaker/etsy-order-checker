@@ -12,9 +12,16 @@ __pycache__/
 labels/*
 !.gitkeep
 
-#Ignore the environment variables
+# Ignore the environment variables
 .env
 
-#
+# Ignore everything in cert folder
 cert/*
 !.gitkeep
+
+# Ignore everything in cert folder
+orders/*
+!.gitkeep
+
+# Ignore file locks
+.~lock.*

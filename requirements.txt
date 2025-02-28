@@ -4,3 +4,4 @@ python-dotenv==1.0.0
 cryptography==44.0.1
 brother-ql==0.9.4
 Flask==3.0.3
+pandas==2.2.3

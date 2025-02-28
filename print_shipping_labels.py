@@ -1,29 +1,27 @@
 import os
 import subprocess
+import pandas as pd
 from dotenv import load_dotenv
 from PIL import Image, ImageDraw, ImageFont
 
-# Load environment variables from .env file
 load_dotenv()
 
-# Read values from .env
 PRINTER_IP = os.getenv("PRINTER_IP")
 PRINTER_MODEL = os.getenv("PRINTER_MODEL", "QL-820NWB")
 LABEL_SIZE = os.getenv("LABEL_SIZE", "29x90")  # Default to 29x90
+LABEL_IMAGE_PATH = os.path.join(os.getcwd(), "labels", "label.png")
 
-# Set label image path inside "labels/" directory (Assuming it exists)
-LABEL_IMAGE_PATH = os.path.join(os.getcwd(), "labels", "label.png")  # Overwrite existing file
+# Read label dimensions & font size from environment, convert to int
+LABEL_WIDTH = int(os.getenv("LABEL_WIDTH", "991"))
+LABEL_HEIGHT = int(os.getenv("LABEL_HEIGHT", "306"))
+FONT_SIZE = int(os.getenv("FONT_SIZE", "120"))
 
-def create_address_label():
+def create_address_label(address_text):
     """Creates a left-aligned address label for 29x90mm labels."""
-    address_text = "Alexander Moyer\n1528 thompson lane\nMECHANICSBURG, PA 17055\nUnited States"
-    
-    # Label dimensions (991x306 pixels)
-    width, height = 991, 306
+    width, height = LABEL_WIDTH, LABEL_HEIGHT
     image = Image.new("1", (width, height), 255)
     draw = ImageDraw.Draw(image)
 
-    # Try common system fonts
     font_paths = [
         "DejaVuSans-Bold.ttf",
         "Arial Bold.ttf",
@@ -32,11 +30,9 @@ def create_address_label():
         "FreeSans-Bold.ttf",
         "LiberationSans-Bold.ttf"
     ]
-    
-    font_size = 120
+    font_size = FONT_SIZE
     font = None
 
-    # Find first available font
     for path in font_paths:
         try:
             font = ImageFont.truetype(path, font_size)
@@ -44,14 +40,12 @@ def create_address_label():
         except (IOError, OSError):
             continue
 
-    # Fallback to default font
     if not font:
         font = ImageFont.load_default()
         print("Using default font")
     else:
-        # Adjust font size to fit
+        # Adjust font size to fit:
         while font_size > 10:
-            # Modern text size calculation
             bbox = draw.textbbox((0, 0), address_text, font=font)
             text_width = bbox[2] - bbox[0]
             text_height = bbox[3] - bbox[1]
@@ -61,22 +55,9 @@ def create_address_label():
             font_size -= 2
             font = ImageFont.truetype(font.path, font_size)
 
-    # Left alignment with margins
-    margin_left = 20
-    margin_top = 20
-
-    # Draw text
-    draw.multiline_text(
-        (margin_left, margin_top),
-        address_text,
-        font=font,
-        fill=0,
-        align="left"
-    )
-
+    draw.multiline_text((20, 0), address_text, font=font, fill=0, align="left")
     image.save(LABEL_IMAGE_PATH)
     print(f"Label image saved at: {LABEL_IMAGE_PATH}")
-
 
 def print_label():
     """Prints the label using the brother_ql command-line tool."""
@@ -95,13 +76,52 @@ def print_label():
     ]
 
     print(f"Executing: {' '.join(command)}")
-    
     try:
         result = subprocess.run(command, check=True, capture_output=True, text=True)
         print("Print successful:", result.stdout)
     except subprocess.CalledProcessError as e:
         print("Error printing label:", e.stderr)
 
+def main():
+    # 1. Run fetch_orders.py to generate orders/unshipped_orders.csv
+    try:
+        print("Running fetch_orders.py...")
+        subprocess.run(["python", "fetch_orders.py"], check=True)
+    except subprocess.CalledProcessError as e:
+        print("Error running fetch_orders.py:", e)
+        return
+
+    # 2. Load the CSV
+    csv_path = os.path.join("orders", "unshipped_orders.csv")
+    if not os.path.isfile(csv_path):
+        print(f"Could not find CSV at {csv_path}")
+        return
+
+    df = pd.read_csv(csv_path)
+
+    # 3. Keep only rows with status = 'Paid'
+    df = df[df['status'] == 'Paid']
+
+    # 4. Flatten to one row per order_id by dropping duplicates
+    df = df.drop_duplicates(subset='order_id')
+
+    # 5. Keep columns: order_id, status, shipping_address
+    #    (assuming 'shipping_address' is the name in your CSV)
+    df = df[['order_id', 'status', 'shipping_address']]
+
+    # 6. Loop over each row, printing the label
+    if df.empty:
+        print("No orders found with status = 'Paid'.")
+        return
+
+    for _, row in df.iterrows():
+        address_text = row['shipping_address']
+        
+        # Ensure newlines are recognized—if your shipping_address already 
+        # contains "\n", it's good to go.
+        
+        create_address_label(address_text)
+        print_label()
+
 if __name__ == "__main__":
-    create_address_label()
-    print_label()
+    main()

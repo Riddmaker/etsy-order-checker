@@ -1,3 +1,6 @@
+import sys
+from threading import Thread
+from urllib.parse import parse_qs, urlparse
 import os
 import base64
 import hashlib
@@ -19,6 +22,12 @@ SCOPES = os.getenv("SCOPES", "transactions_r")
 REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:5000/callback")
 
 ENV_FILE = ".env"
+
+cert_dir = os.path.join(os.path.dirname(__file__), 'cert')
+ssl_context = (
+    os.path.join(cert_dir, 'cert.pem'),
+    os.path.join(cert_dir, 'key.pem')
+)
 
 # ---------------------------------------------------------
 # Helpers: PKCE code_verifier, code_challenge generation & key cleaner
@@ -196,6 +205,83 @@ def show_tokens():
         "ACCESS_TOKEN": os.getenv("ACCESS_TOKEN"),
         "REFRESH_TOKEN": os.getenv("REFRESH_TOKEN"),
     }
+
+# Add this class at the bottom before the __main__ block
+class EtsyAuthManager:
+    @staticmethod
+    def get_valid_token():
+        """
+        Returns valid access token, refreshes if needed
+        Starts OAuth flow if no valid tokens exist
+        """
+        access_token = os.getenv("ACCESS_TOKEN", "").strip('"')
+        refresh_token = os.getenv("REFRESH_TOKEN", "").strip('"')
+
+        if not access_token:
+            EtsyAuthManager._full_oauth_flow()
+            return os.getenv("ACCESS_TOKEN").strip('"')
+
+        try:
+            # Simple token validation by making a test request
+            test_url = f"https://api.etsy.com/v3/application/shops/{os.getenv('SHOP_ID')}/receipts?limit=1"
+            response = requests.get(
+                test_url,
+                headers={
+                    "x-api-key": os.getenv("CLIENT_ID"),
+                    "Authorization": f"Bearer {access_token}"
+                }
+            )
+            response.raise_for_status()
+            return access_token
+        except requests.HTTPError as e:
+            if e.response.status_code == 401:
+                return EtsyAuthManager._refresh_token_flow()
+            raise
+
+    @staticmethod
+    def _refresh_token_flow():
+        """Handle token refresh via a real Flask test client request."""
+        current_refresh = os.getenv("REFRESH_TOKEN", "").strip('"')
+        if not current_refresh:
+            # If we have no refresh token, do the full flow
+            return EtsyAuthManager._full_oauth_flow()
+        
+        try:
+            with app.test_client() as c:
+                # Make a GET request to /refresh_token
+                resp = c.get("/refresh_token")
+                
+                # If refresh fails, /refresh_token route will return 400 or some non-200 code
+                if resp.status_code != 200:
+                    raise ValueError(
+                        f"Refresh failed with status {resp.status_code}: {resp.data.decode()}"
+                    )
+                
+            # After refresh, .env has the new tokens. Reload them in-memory:
+            load_dotenv()
+            
+            # Return the new access token
+            return os.getenv("ACCESS_TOKEN", "").strip('"')
+        
+        except Exception as e:
+            print(f"Error refreshing token: {e}")
+            # If refresh fails for any reason, fall back to full OAuth flow
+            return EtsyAuthManager._full_oauth_flow()
+
+
+    @staticmethod
+    def _full_oauth_flow():
+        """Run full OAuth flow"""
+        print("Starting OAuth flow...")
+        flask_thread = Thread(target=app.run, kwargs={'ssl_context': ssl_context})
+        flask_thread.start()
+        
+        # Open auth URL in browser
+        import webbrowser
+        webbrowser.open("https://localhost:5000/start_auth")
+        
+        flask_thread.join()
+        return os.getenv("ACCESS_TOKEN").strip('"')
 
 # ---------------------------------------------------------
 # Run the Flask app (for local testing)
