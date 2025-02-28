@@ -68,4 +68,4 @@ If you have set up everything correctly, you will now have in addition to what y
 2. cert.pem and key.pem in the cert folder.
 
 ## 3. Print label
-Run print_shipping_labels.py to print all shipping labels for all orders that are unshipped and paid.
+Run ´python print_shipping_labels.py´ to print all shipping labels for all orders that are unshipped and paid.
