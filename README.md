@@ -36,6 +36,7 @@ To receive my first ACCESS_TOKEN, REFRESH_TOKEN and SHOP_ID, I used postman. You
     10. LABEL_WIDTH=pixel_label_width_in_your_printer_according_to_brother_ql_docu
     11. LABEL_HEIGHT=pixel_label_height_in_your_printer_according_to_brother_ql_docu
     12. FONT_SIZE=120 (Trial and error, there's logic that adjusts font size automatically a bit.)
+    13. BACKEND=network (Check brother-ql docu on how to use USB, I never used it.)
     13. REDIRECT_URI=https://localhost:5000/callback (As mentioned earlier, make sure you have the same URI saved in your etsy app.)
     14. FLASK_SECRET_KEY=random_string_of_characters (Choose your own length.)
 3. Open a Terminal in the project directory and run the following commands:
@@ -61,8 +62,9 @@ If you have set up everything correctly, you will now have in addition to what y
     10. LABEL_WIDTH
     11. LABEL_HEIGHT
     12. FONT_SIZE
-    13. REDIRECT_URI
-    14. FLASK_SECRET_KEY
+    13. BACKEND
+    14. REDIRECT_URI
+    15. FLASK_SECRET_KEY
 2. cert.pem and key.pem in the cert folder.
 
 ## 3. Print label

@@ -16,6 +16,9 @@ LABEL_WIDTH = int(os.getenv("LABEL_WIDTH", "991"))
 LABEL_HEIGHT = int(os.getenv("LABEL_HEIGHT", "306"))
 FONT_SIZE = int(os.getenv("FONT_SIZE", "120"))
 
+# Read needed backend
+BACKEND = os.getenv("BACKEND", "network")
+
 def create_address_label(address_text):
     """Creates a left-aligned address label for 29x90mm labels."""
     width, height = LABEL_WIDTH, LABEL_HEIGHT
@@ -67,7 +70,7 @@ def print_label():
 
     command = [
         "brother_ql",
-        "--backend", "network",
+        "--backend", f"{BACKEND}",
         "--model", PRINTER_MODEL,
         "--printer", f"tcp://{PRINTER_IP}:9100",
         "print",
