@@ -26,6 +26,7 @@ def create_address_label(address_text):
     draw = ImageDraw.Draw(image)
 
     font_paths = [
+        "/usr/share/fonts/noto/NotoSansCJK-Regular.ttc",
         "DejaVuSans-Bold.ttf",
         "Arial Bold.ttf",
         "arialbd.ttf",
